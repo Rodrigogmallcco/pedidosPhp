@@ -12,6 +12,9 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Google_Client;
+use Google_Service_Drive;
+use Google_Service_Drive_DriveFile;
 class pedidoController extends Controller
 {
     public function nuevoPedido(Request $request)
@@ -24,6 +27,7 @@ class pedidoController extends Controller
 
         $pedido = new Pedido([
             'fecha' => Carbon::now()->toDateString(),
+            'usuario_id'=> $usuario->usuario_id,
         ]);
         $pedido->save();
 
@@ -38,10 +42,10 @@ class pedidoController extends Controller
 
             $detallePedido = new DetallePedido([
                 'stock' => $detalleRequest['cantidad'],
-                'precioUnitario' => $producto->precio,
+                'precio_unitario' => $producto->precio,
                 'estado' => 'Pendiente',
-                'totalD' => $producto->precio * $detalleRequest['cantidad'],
-                'pedido_pedido_id' => $pedido->id,
+                'total_d' => $producto->precio * $detalleRequest['cantidad'],
+                'pedido_id' => $pedido->id,
             
             ]);
 
@@ -50,19 +54,47 @@ class pedidoController extends Controller
 
             $detallePedido->save();
 
-            $pedido->detalles()->save($detallePedido);
+            
 
 
-            $totalPedido += $detallePedido->totalD;
+            $totalPedido += $detallePedido->total_d;
         }
 
-        $pedido->totalP = $totalPedido;
+        $pedido->total_p = $totalPedido;
+
         $usuario->pedidos()->save($pedido);
 
         return response()->json(['message' => 'Pedido creado con éxito', 'pedido' => $pedido], 201);
     }
 
-    public function actualizarEstado(Request $request, $detalle_id)
+
+    public function actualizarEstado(Request $request, $pedido_id)
+{
+    try {
+        $detallePedidos = DetallePedido::where('pedido_id', $pedido_id)->get();
+
+        if ($detallePedidos->isEmpty()) {
+            return response()->json(['error' => 'Detalle de pedido no encontrado'], 404);
+        }
+
+        $request->validate([
+            'estado' => 'required|string',
+            
+        ]);
+
+        foreach ($detallePedidos as $detallePedido) {
+            $detallePedido->estado = $request->input('estado');
+            $detallePedido->save();
+        }
+        return response()->json(['message' => 'Estado actualizado con éxito', 'detallePedido' => $detallePedido]);
+    
+    } catch (\Exception $e) {
+        Log::error('Error al actualizar estado' . $e->getMessage());
+        return response()->json(['error' => 'Ha ocurrido un error al actualizar estado '], 500);
+    }
+}
+
+public function actualizarDetallePedido(Request $request, $detalle_id)
 {
     try {
         $detallePedido = DetallePedido::find($detalle_id);
@@ -73,47 +105,62 @@ class pedidoController extends Controller
 
         $request->validate([
             'estado' => 'required|string',
-            /* 'archivo'=> 'file', */
-            
         ]);
 
         $detallePedido->estado = $request->input('estado');
-        
         $detallePedido->save();
-        return response()->json(['message' => 'Estado actualizado con éxito', 'detallePedido' => $detallePedido]);
-    
+
+        return response()->json(['message' => 'Estado del detalle de pedido actualizado con éxito', 'detallePedido' => $detallePedido]);
+
     } catch (\Exception $e) {
-        Log::error('Error al actualizar estado y archivo: ' . $e->getMessage());
-        return response()->json(['error' => 'Ha ocurrido un error al actualizar estado y archivo'], 500);
+        Log::error('Error al actualizar el estado del detalle de pedido: ' . $e->getMessage());
+        return response()->json(['error' => 'Ha ocurrido un error al actualizar el estado del detalle de pedido'], 500);
     }
 }
 
-public function subirArchivo(Request $request, $detalle_id)
-    {
-        $detallePedido = DetallePedido::find($detalle_id);
 
-        if (!$detallePedido) {
-            return response()->json(['error' => 'Detalle de pedido no encontrado'], 404);
-        }
+public function subirArchivo(Request $request, $detalle_id){
+    try{
+    $client = new Google_Client();
+    $client->setAuthConfig(base_path('datoss/credenciales.json'));
+    $client->addScope(Google_Service_Drive::DRIVE_FILE);
 
-    $request->validate([
-        'archivoAdjunto' => 'file',
+    $service = new Google_Service_Drive($client);
+
+    $rutaArchivo=$request->file('archivo')->getPathname();
+    $nombreArchivo = $request->file('archivo')->getClientOriginalName();
+    $archivo = new Google_Service_Drive_DriveFile();
+    $archivo->setName($nombreArchivo);
+
+    $idCarpetaDestino = '1-FuuitMMziyzVAYvkOjJynvvZ1ADS-Vp';
+    $archivo->setParents([$idCarpetaDestino]);
+
+    $resultado = $service->files->create($archivo, [
+        'data' => file_get_contents($rutaArchivo),
+        'mimeType' => $request->file('archivo')->getMimeType(),
     ]);
 
-   
-    if ($request->hasFile('archivoAdjunto')) {
-        $archivo = $request->file('archivoAdjunto');
+    $archivoId = $resultado->getId();
+    $archivo = $service->files->get($archivoId, ['fields' => 'webViewLink']);
 
-        if ($archivo->isValid()) {
-            $detallePedido->archivoAdjunto = base64_encode(file_get_contents($archivo));
-            $detallePedido->save();
 
-            return redirect()->back()->with('success', 'Archivo subido y guardado con éxito.');
-        } else {
-            return redirect()->back()->with('error', 'El archivo no es válido.');
-        }
-    } else {
-        return redirect()->back()->with('error', 'No se proporcionó ningún archivo.');
+    //dd($resultado);
+
+    $enlaceArchivo = $archivo->getWebViewLink();
+    //ded($enlaceArchivo);
+
+    $detallePedido = DetallePedido::find($detalle_id);
+    if (!$detallePedido) {
+        return response()->json(['error' => 'Detalle de pedido no encontrado'], 404);
     }
-    }
+    $detallePedido->archivo_adjunto = $enlaceArchivo;
+    $detallePedido->save();
+    return response()->json(['message' => 'Archivo subido con éxito', 'enlaceArchivo' => $enlaceArchivo]);
+
+} catch (\Exception $e) {
+    Log::error('Error al subir el archivo a Google Drive: ' . $e->getMessage());
+    return response()->json(['error' => 'Ha ocurrido un error al subir el archivo a Google Drive'], 500);
+}
+}
+    
 }

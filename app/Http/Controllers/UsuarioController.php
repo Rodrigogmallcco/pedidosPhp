@@ -9,6 +9,10 @@ use App\Models\Usuario;
 use App\Models\Persona;
 use App\Models\UsuarioRol;
 
+use Illuminate\Support\Facades\DB;
+
+use Illuminate\Support\Facades\Log;
+
 class UsuarioController extends Controller
 {
     public function register(Request $request)
@@ -31,6 +35,10 @@ class UsuarioController extends Controller
             'numeroDocumento' => $request->input('numeroDocumento'),
         ]);
         $persona->save();
+
+        $personaId = $persona->persona_id;
+        Log::info('Valor de personaId: ' . $personaId);
+
         $nombreDelRol = $request->input('nombreDelRol');
         $rol = Rol::where('nombreDelRol', $nombreDelRol)->first();
 
@@ -39,18 +47,18 @@ class UsuarioController extends Controller
         }
 
         $usuario = new Usuario([
-            'personaId' => $persona->personaId,
             'username' => $request->input('username'),
             'password' => bcrypt($request->input('password')),
             'correoElectronico' => $request->input('correoElectronico'),
             'estado' => true, 
+            'persona_id' => $personaId,
         ]);
 
         $usuario->save();
 
         $usuarioRol = new UsuarioRol([
-            'usuario_id' => $usuario->usuarioId,
-            'rol_id' => $rol->rolId,
+            'usuario_id' => $usuario->usuario_id,
+            'rol_id' => $rol->rol_id,
         ]);
 
         $usuarioRol->save();
@@ -58,31 +66,19 @@ class UsuarioController extends Controller
         return response()->json(['message' => 'Usuario creado con éxito'], 201);
     }
 
-    public function listarProductos($nombrePersona)
-{
-    $usuario = Usuario::whereHas('persona', function ($query) use ($nombrePersona) {
-        $query->where('nombre', $nombrePersona);
-    })->first();
+    public function listarProductos(Request $request)
+    {
+        $nombrePersona = $request->input('nombrePersona');
+        $fechaInicio = $request->input('fechaInicio');
+        $fechaFin = $request->input('fechaFin');
 
-    if (!$usuario) {
-        return response()->json(['error' => 'Cliente no encontrado'], 404);
-    }
+        $resultados = DB::select('CALL pedidos(?, ?, ?)', [$nombrePersona, $fechaInicio, $fechaFin]);
 
-    $pedidos = $usuario->pedidos;
+        Log::debug('Consulta ejecutada:', ['query' => 'CALL pedidos(?, ?, ?)', 'params' => [$nombrePersona, $fechaInicio, $fechaFin]]);
 
-    $productosPedidos = [];
-
-    foreach ($pedidos as $pedido) {
-        foreach ($pedido->detalles as $detallePedido) {
-            $producto = $detallePedido->producto;
-            $productosPedidos[] = $producto;
-        }
-    }
-
-    return response()->json(['productos_pedidos' => $productosPedidos], 200);
-}
-
-
-    
-    
+        // Registra los resultados en el archivo de registro
+        Log::debug('Resultados de la consulta:', ['data' => $resultados]);
+        // Devuelve los resultados como parte de la respuesta JSON
+        return response()->json(['message' => 'Procedimiento almacenado ejecutado con éxito', 'data' => $resultados], 200);
+    }    
 }

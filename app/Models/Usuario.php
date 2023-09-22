@@ -9,31 +9,31 @@ class Usuario extends Model
 {
     use HasFactory;
     
-    protected $table = 'usuario'; // Nombre de la tabla en la base de datos
+    protected $table = 'usuario'; 
 
-    protected $primaryKey = 'usuarioId'; // Clave primaria de la tabla
+    protected $primaryKey = 'usuario_id'; 
 
     protected $fillable = [
-        'personaId', // Nombre de la columna en la tabla de la relación con Persona
+        'persona_id', 
         'username',
         'password',
         'correoElectronico',
         'estado',
     ];
 
-    // Relación con la entidad Persona
+    
     public function persona()
     {
-        return $this->belongsTo(Persona::class, 'personaId', 'personaId');
+        return $this->belongsTo(Persona::class, 'persona_id', 'persona_id');
     }
 
-    // Relación con la entidad UsuarioRol
+    
     public function usuarioRol()
     {
-        return $this->hasMany(UsuarioRol::class, 'usuario_id', 'usuarioId');
+        return $this->hasMany(UsuarioRol::class, 'usuario_id', 'usuario_id');
     }
     public function pedidos()
     {
-        return $this->hasMany(Pedido::class);
+        return $this->hasMany(Pedido::class,'usuario_id','usuario_id');
     }
 }

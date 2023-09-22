@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class Persona extends Model
 {
     use HasFactory;
-    protected $table = 'persona'; // Nombre de la tabla en la base de datos
+    protected $table = 'persona'; 
 
-    protected $primaryKey = 'personaId'; // Clave primaria de la tabla
+    protected $primaryKey = 'persona_id'; 
 
-    public $timestamps = false; // Si no necesitas las marcas de tiempo created_at y updated_at
+    public $timestamps = false; 
 
     protected $fillable = [
         'nombre',
@@ -22,7 +22,7 @@ class Persona extends Model
     ];
     public function usuario()
 {
-    return $this->hasOne(Usuario::class, 'personaId', 'personaId');
+    return $this->hasOne(Usuario::class, 'persona_id', 'persona_id');
 }
 
 }

@@ -8,14 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class UsuarioRol extends Model
 {
     use HasFactory;
-    protected $table = 'usuario_rol'; // Nombre de la tabla en la base de datos
+    protected $table = 'usuario_rol'; 
 
-    protected $primaryKey = 'usuarioRolId'; // Clave primaria de la tabla
+    protected $primaryKey = 'usuarioRolId'; 
     public $timestamps = false;
 
     protected $fillable = [
-        'usuario_id', // Nombre de la columna en la tabla de la relación con Usuario
-        'rol_id', // Nombre de la columna en la tabla de la relación con Rol
+        'usuario_id', 
+        'rol_id',
     ];
 
     // Relación con la entidad Usuario

@@ -16,23 +16,23 @@ class DetallePedido extends Model
 
     protected $fillable = [
         'stock',
-        'precioUnitario',
-        'totalD',
+        'precio_unitario',
+        'total_d',
         'estado',
         'pedido_id', 
         'producto_id',
-        'archivoAdjunto',
+        'archivo_adjunto',
     ];
 
     // Relación con la entidad Pedido
     public function pedido()
     {
-        return $this->belongsTo(Pedido::class);
+        return $this->belongsTo(Pedido::class, 'pedido_id', 'pedido_id');
     }
 
     // Relación con la entidad Producto
     public function producto()
     {
-        return $this->belongsTo(Producto::class);
+        return $this->belongsTo(Producto::class,'producto_id','producto_id');
     }
 }

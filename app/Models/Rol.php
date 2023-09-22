@@ -8,16 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 class Rol extends Model
 {
     use HasFactory;
-    protected $table = 'rol'; // Nombre de la tabla en la base de datos
+    protected $table = 'rol'; 
 
-    protected $primaryKey = 'rolId'; // Clave primaria de la tabla
+    protected $primaryKey = 'rol_id'; 
+    public $timestamps = false;
 
     protected $fillable = [
         'nombreDelRol',
     ];
     public function usuarioRol()
     {
-        return $this->hasMany(UsuarioRol::class, 'rol_id', 'rolId');
+        return $this->hasMany(UsuarioRol::class, 'rol_id', 'rol_id');
 
     }
 }
